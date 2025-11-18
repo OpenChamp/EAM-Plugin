@@ -1,14 +1,19 @@
 @tool
+class_name EAMDock
 extends Control
 
-@onready var reload_button: Button = $VSplitContainer/ReloadBtn
+@onready var reload_button: Button = $VSplitContainer/HBoxContainer/ReloadBtn
+@onready var manage_button: Button = $VSplitContainer/HBoxContainer/ManageBtn
 @onready var asset_tab_container := $VSplitContainer/AssetTabContainer
+
+var config_window : Window
 
 var asset_types := Identifier.get_all_resource_types()
 
 # Called when the node enters the scene tree for the first time.
 func _ready() -> void:
 	reload_button.pressed.connect(_rebuild_asset_list)
+	manage_button.pressed.connect(_open_config_window)
 	_build_asset_list()
 
 
@@ -29,6 +34,8 @@ func _build_asset_list():
 	
 	AssetIndexer.index_files()
 	var dynamic_assets := AssetIndexer.get_asset_map() as Dictionary
+	print('got ' + str(dynamic_assets.size()) + ' assets from indexer')
+	print(dynamic_assets)
 	
 	# create the containers for all the categories
 	var category_continers = {}
@@ -36,37 +43,40 @@ func _build_asset_list():
 	for asset_type in asset_types:
 		var asset_tab_typed := VBoxContainer.new()
 		asset_tab_typed.name = asset_type
-		category_continers[asset_type] = asset_tab_typed
-	
-	# create the all category
+		category_continers[asset_type] = asset_tab_typed	# add assets to their proper containers
 	var asset_keys = dynamic_assets.keys()
-	for type in asset_types:
-		for key in asset_keys:
-			var asset_id = Identifier.from_string(key)
-			var content_id = asset_id.get_content_identifier()
-			var asset_type = asset_id.get_content_type()
-			if content_id == null:
-				print('got null as content id for: ' + asset_id.to_string() )
-				continue
-
-			if asset_type != type and type != 'dynamic':
-				continue
-			
-			var asset_label_category = Label.new()
-			
-			if type == 'dynamic':
-				asset_label_category.text = Identifier.get_resource_prefix_from_type(type) + asset_id.to_string()
-			else:
-				asset_label_category.text = Identifier.get_resource_prefix_from_type(type) + content_id.to_string()
-			
-			asset_label_category.mouse_filter = Control.MOUSE_FILTER_STOP
-			asset_label_category.tooltip_text = dynamic_assets[key]
-			
-			asset_label_category.gui_input.connect(
-				func asset_callback(input_event):
-					_copy_asset_id(input_event, asset_label_category.text)
-			)
-			category_continers[type].add_child(asset_label_category)
+	for key in asset_keys:
+		# Extract the main asset type from the key (before the colon)
+		var colon_index = key.find(':')
+		if colon_index == -1:
+			print('invalid asset key format: ' + key)
+			continue
+		
+		var asset_type = key.substr(0, colon_index)
+		
+		# Skip if the asset type is not in our known types
+		if asset_type not in category_continers:
+			print('unknown asset type: ' + asset_type)
+			continue
+		
+		var asset_id = Identifier.from_string(key)
+		var content_id = asset_id.get_content_identifier()
+		
+		if content_id == null:
+			print('got null as content id for: ' + asset_id.to_string())
+			continue
+		
+		var asset_label_category = Label.new()
+		
+		asset_label_category.text = key
+		asset_label_category.mouse_filter = Control.MOUSE_FILTER_STOP
+		asset_label_category.tooltip_text = dynamic_assets[key]
+		
+		asset_label_category.gui_input.connect(
+			func asset_callback(input_event):
+				_copy_asset_id(input_event, asset_label_category.text)
+		)
+		category_continers[asset_type].add_child(asset_label_category)
 		
 	# add all tabs to the tab container
 	for category_name in category_continers.keys():
@@ -90,7 +100,15 @@ func _copy_asset_id(input_event: InputEvent, clipboard_text: String):
 			print("callback for label " + clipboard_text + " entered")
 			DisplayServer.clipboard_set(clipboard_text)
 
-
+func _open_config_window():
+	push_error("Config window not yet implemented.")
+	# if config_window:
+	# 	config_window.grab_focus()
+	# 	return
+	# config_window = Window.new()
+	# EditorInterface.popup_dialog(config_window)
+	# config_window.move_to_center()
+	
 # Called every frame. 'delta' is the elapsed time since the previous frame.
 func _process(delta: float) -> void:
 	pass

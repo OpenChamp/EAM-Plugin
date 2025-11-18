@@ -34,6 +34,7 @@ static inline HashMap<String, String> get_content_type_map() {
 	map["material"] = "materials";
 	map["model"] = "models";
 	map["gamemode"] = "patchdata";
+	map["entity"] = "entities";
 	map["map"] = "maps";
 	map["unit"] = "units";
 	map["shader"] = "shaders";
