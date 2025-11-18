@@ -1,0 +1,27 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="EAM-Plugin"
+config/features=PackedStringArray("4.6", "Mobile")
+config/icon="uid://b16lxhi0dtkxa"
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/eam/plugin.cfg")
+
+[physics]
+
+3d/physics_engine="Jolt Physics"
+
+[rendering]
+
+renderer/rendering_method="mobile"

@@ -1,0 +1,126 @@
+#include "dynamic_asset_indexer.hpp"
+
+#include "indexing_functions.cpp"
+
+#include <godot_cpp/core/class_db.hpp>
+
+// Expose DynamicAssetIndexer methods to Godot.
+void DynamicAssetIndexer::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("index_files"), &DynamicAssetIndexer::index_files);
+	ClassDB::bind_method(D_METHOD("re_index_files"), &DynamicAssetIndexer::re_index_files);
+	ClassDB::bind_method(D_METHOD("get_asset_path"), &DynamicAssetIndexer::get_asset_path);
+	ClassDB::bind_method(D_METHOD("get_resource_path"), &DynamicAssetIndexer::get_resource_path);
+	ClassDB::bind_method(D_METHOD("dump_asset_map"), &DynamicAssetIndexer::dump_asset_map);
+	ClassDB::bind_method(D_METHOD("get_asset_map"), &DynamicAssetIndexer::get_asset_map);
+}
+
+Ref<DynamicAssetIndexer> DynamicAssetIndexer::_AssetIndexerSingleton{};
+
+DynamicAssetIndexer::DynamicAssetIndexer():index_mutex{memnew(godot::Mutex)} {}
+
+DynamicAssetIndexer::~DynamicAssetIndexer() {}
+
+// Index default assets and external packs.
+void DynamicAssetIndexer::index_files(){
+	if (files_indexed){
+		return;
+	}
+
+	MutexLock lock{**index_mutex};
+	files_indexed = true;
+
+	// Index res://default_assets as base pack first.
+	UtilityFunctions::print("Indexing asset pack res://default_assets");
+	_index_asset_pack("res://default_assets", asset_map);
+
+	// Index external packs; will overwrite defaults.
+	auto packs_dir = DirAccess::open("user://external"); 
+	if (packs_dir == nullptr){
+		UtilityFunctions::print("Failed to open external directory");
+		return;
+	}
+
+	packs_dir->list_dir_begin();
+	String asset_pack = packs_dir->get_next();
+
+	UtilityFunctions::print("Indexing asset packs from user://external");
+
+	while (asset_pack != ""){
+		UtilityFunctions::print("Indexing asset pack: " + asset_pack);
+
+		String pack_path = "user://external/" + asset_pack;
+		if (packs_dir->current_is_dir()){
+			_index_asset_pack(pack_path, asset_map);
+		}
+			
+		asset_pack = packs_dir->get_next();
+	}
+}
+
+// Clear map and re-index all asset packs.
+void DynamicAssetIndexer::re_index_files(){
+	{
+		MutexLock lock{**index_mutex};
+		asset_map.clear();
+		files_indexed = false;
+	}
+	
+	index_files();
+}
+
+// Get file path for asset identifier.
+String DynamicAssetIndexer::get_asset_path(Ref<Identifier> asset_id){
+	index_files();
+
+	String asset_id_string = asset_id->to_string();	
+
+	if (!asset_map.has(asset_id_string)){
+		UtilityFunctions::print("Asset not found in index: " + asset_id->to_string());
+		return "";
+	}
+	
+	return asset_map[asset_id_string];
+}
+
+// Get resource path and content type from resource ID.
+TypedArray<String> DynamicAssetIndexer::get_resource_path(String raw_resource_path){
+	TypedArray<String> result = {};
+
+	auto resource_id = Identifier::for_resource(raw_resource_path);
+	if (!resource_id->is_valid()){
+		UtilityFunctions::print("Got invalid Identidier: '" + raw_resource_path + "'");
+		return result;
+	}
+
+	auto fixed_path = get_asset_path(resource_id);
+	if (fixed_path == ""){
+		UtilityFunctions::print("Asset not found in AssetIndexer: '" + raw_resource_path + "'");
+		return result;
+	}
+
+	result.append(fixed_path);
+	result.append(resource_id->get_content_type());
+
+	return result;
+}
+
+// Print all indexed assets and their paths.
+void DynamicAssetIndexer::dump_asset_map() {
+	index_files();
+
+	UtilityFunctions::print("Asset map with size ", asset_map.size());
+    for ( const auto& [key, value] : asset_map ) {
+        UtilityFunctions::print(key, " : ", value.ascii().get_data());
+    }
+}
+
+// Return all indexed assets as dictionary.
+Variant DynamicAssetIndexer::get_asset_map() {
+	index_files();
+
+	Dictionary map;
+	for ( const auto& [key, value] : asset_map ) {
+		map[key] = value;
+	}
+	return map;
+}
