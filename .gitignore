@@ -4,3 +4,7 @@
 CMakeFiles/
 build/
 *.tmp
+*.dll
+*.log
+*.pdb
+default_assets

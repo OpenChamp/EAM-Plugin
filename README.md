@@ -18,26 +18,11 @@ The External Asset Manager is a Godot plugin for the OpenChamp project that mana
 - **DataCacheManager**: Manages hashed data caching for assets
 - **DynmaicPrefixHandler**: Custom resource loader for dynamic asset prefixes
 
-## Building
-
-### Requirements
-- CMake 3.13+
-- Ninja or Make
-- C++17 compatible compiler
-- Godot C++ bindings
-
-### Build Steps
-
-```bash
-cd index_manager
-mkdir build && cd build
-cmake .. -G Ninja
-ninja
-```
-
-The compiled extension will be placed in the `bin/` directory.
+The compiled extension will be placed in the `/addons/eam/bin` directory.
 
 ## Usage
+
+By default, the plugin will load res://default_assets and user://external to find assets to use.
 
 ### GDScript API
 
@@ -55,6 +40,31 @@ var cached = DataCache.get_cached_json("hash")
 var id = Identifier.from_string("group:name")
 var id = Identifier.from_values("group", "name")
 var prefix = Identifier.get_resource_prefix_from_type("textures")
+
+## === Spawn an entity from an XML template manually === ##
+
+# 1. Load Template
+var template = EntityTemplates.get_entity_template("cannon_minion")
+
+# 2. Access Template Properties
+var entity_id = template["id"]
+
+# 3. Access Template Components
+var movement = template.get("_children", {}).get("movement", {})
+var stats = template.get("_children", {}).get("stats", {})
+
+# 4. Create new Entity
+var minion = minion_scene.instantiate()
+minion.name = entity_id
+
+# 5. Apply Relevant Information
+if stats.size() > 0:
+    minion.max_health = stats.get("max_health", 100)
+    minion.health = stats.get("health", 100)
+    minion.move_speed = stats.get("move_speed", 5.0)
+    # etc...
+
+add_child(minion)
 ```
 
 ## Asset Structure
