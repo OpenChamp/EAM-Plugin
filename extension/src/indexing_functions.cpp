@@ -1,5 +1,6 @@
 #include "identifier.hpp"
 #include "data_cache_manager.hpp"
+#include "xml_loader.hpp"
 
 #include <gdextension_interface.h>
 
@@ -150,7 +151,7 @@ static inline void _cache_patch_data(String pack_path, String asset_group, HashM
 
 		Vector<String> patch_types = {"characters", "units", "items", "misc", "map"};
 
-		for (String patch_type:patch_types){
+		for (String patch_type : patch_types){
 
 			auto gamemode_dir = DirAccess::open(pack_path + "/" + asset_group + "/patchdata/" + gamemode_name + "/" + patch_type);
 			if (gamemode_dir == nullptr){
@@ -175,7 +176,53 @@ static inline void _cache_patch_data(String pack_path, String asset_group, HashM
 				UtilityFunctions::print("Cached file '" + patch_path + "' with hash: " + file_hash);
 			}
 		}
+	}
+}
+
+// Load and cache XML entity data files.
+static inline void _load_entity_data(String pack_path, String asset_group, HashMap<String, String>& asset_map){
+	auto entities_dir = DirAccess::open(pack_path + "/" + asset_group + "/entities");
+	if (entities_dir == nullptr){
+		UtilityFunctions::print("Failed to open entities directory");
+		return;
+	}
+
+	entities_dir->list_dir_begin();
+	String entity_file = "";
+
+	while ((entity_file = entities_dir->get_next()) != ""){
+		if (entities_dir->current_is_dir()){
+			continue;
+		}
+
+		if (!entity_file.ends_with(".xml")){
+			continue;
+		}
+
+		String entity_path = pack_path + "/" + asset_group + "/entities/" + entity_file;
 		
+		// Load and parse XML file
+		XmlDocument doc = XmlLoader::load_xml_file(entity_path.utf8().get_data());
+		if (!doc.is_valid){
+			UtilityFunctions::push_error("Failed to load entity XML: ", entity_path);
+			continue;
+		}
+
+		if (!doc.root){
+			UtilityFunctions::push_error("Entity XML has no root node: ", entity_path);
+			continue;
+		}
+
+		// Get entity ID from root element
+		XmlAttribute id_attr = doc.root->get_attribute("id");
+		if (id_attr.string_value.empty()){
+			UtilityFunctions::push_error("Entity XML missing id attribute: ", entity_path);
+			continue;
+		}
+
+		// Cache the entire entity file
+		String file_hash = DataCacheManager::get_singleton()->cache_file(entity_path);
+		UtilityFunctions::print("Cached entity file '" + entity_path + "' with ID: " + String(id_attr.string_value.c_str()) + " hash: " + file_hash);
 	}
 }
 
@@ -189,37 +236,38 @@ static inline void _index_resources(
 	String resource_type,
 	String resource_subdir
 ){
-	auto texture_dir = DirAccess::open(pack_path + "/" + asset_group + "/" + resource_subdir);
-	if (texture_dir == nullptr){
-		UtilityFunctions::print("Failed to open " + resource_type + " directory");
+	auto resource_dir = DirAccess::open(pack_path + "/" + asset_group + "/" + resource_subdir);
+	if (resource_dir == nullptr){
+		UtilityFunctions::push_error("Failed to open " + resource_type + " directory");
 		return;
 	}
 	
 	UtilityFunctions::print("loading " + resource_type + " for " + pack_path + "/" + asset_group + "/" + resource_subdir);
 
-	texture_dir->list_dir_begin();
-	String texture_name = "";
-	while ((texture_name = texture_dir->get_next()) != ""){
-		if (texture_dir->current_is_dir()){
-			_index_resources(pack_path, asset_group, asset_map, resource_type, resource_subdir + "/" + texture_name);
+	resource_dir->list_dir_begin();
+	String resource_name = "";
+	while ((resource_name = resource_dir->get_next()) != ""){
+		if (resource_dir->current_is_dir()){
+			_index_resources(pack_path, asset_group, asset_map, resource_type, resource_subdir + "/" + resource_name);
 		}else{
 
-			if (texture_name.ends_with(".bin")){
+			if (resource_name.ends_with(".bin")){
 				continue;
 			}
 			
-			if (texture_name.ends_with(".import")){
-				texture_name = texture_name.substr(0, texture_name.length() - 7);
+			if (resource_name.ends_with(".import")){
+				resource_name = resource_name.substr(0, resource_name.length() - 7);
 			}
 
 			// Load/Index Texture.
-			String texture_path = pack_path + "/" + asset_group + "/" + resource_subdir + "/" + texture_name;
-			String texture_basename = texture_name.get_basename();
+			String resource_path = pack_path + "/" + asset_group + "/" + resource_subdir + "/" + resource_name;
+			String resource_basename = resource_name.get_basename();
 			
-			Ref<Identifier> texture_id = Identifier::from_values(asset_group, resource_subdir + "/" + texture_basename);
+			Ref<Identifier> resource_id = Identifier::from_values(asset_group, resource_subdir + "/" + resource_basename);
 
-			asset_map[texture_id->to_string()] = texture_path;
-			UtilityFunctions::print("Indexed " + resource_type + ": " + texture_id->to_string());
+			asset_map[resource_id->to_string()] = resource_path;
+			UtilityFunctions::print("Indexed " + resource_type + ": " + resource_id->to_string());
+			UtilityFunctions::print(" at path: " + resource_path);
 		}
 	}
 }
@@ -229,7 +277,7 @@ static inline void _index_resources(
 static inline void _index_asset_group(String pack_path, String asset_group, HashMap<String, String>& asset_map){
 	auto group_dir = DirAccess::open(pack_path + "/" + asset_group);
 	if (group_dir == nullptr){
-		UtilityFunctions::print("Failed to open group directory: " + asset_group);
+		UtilityFunctions::push_error("Failed to open group directory: " + asset_group);
 		return;
 	}
 
@@ -246,6 +294,8 @@ static inline void _index_asset_group(String pack_path, String asset_group, Hash
 				_index_fonts(pack_path, asset_group, asset_map);
 			}else if (asset_type == "patchdata"){
 				_cache_patch_data(pack_path, asset_group, asset_map);
+			}else if (asset_type == "entities"){
+				_load_entity_data(pack_path, asset_group, asset_map);
 			}else{
 				_index_resources(pack_path, asset_group, asset_map, asset_type, asset_type);
 			}
@@ -260,7 +310,7 @@ static inline void _index_asset_group(String pack_path, String asset_group, Hash
 static inline void _index_asset_pack(String pack_path, HashMap<String, String>& asset_map){
 	auto pack_dir = DirAccess::open(pack_path);
 	if (pack_dir == nullptr){
-		UtilityFunctions::print("Failed to open pack directory: " + pack_path);
+		UtilityFunctions::push_error("Failed to open pack directory: " + pack_path);
 		return;
 	}
 

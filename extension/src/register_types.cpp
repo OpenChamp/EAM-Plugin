@@ -4,6 +4,7 @@
 #include "dynamic_asset_indexer.hpp"
 #include "dynmaic_prefix_handler.hpp"
 #include "data_cache_manager.hpp"
+#include "entity_template_manager.hpp"
 
 #include <gdextension_interface.h>
 #include <godot_cpp/core/defs.hpp>
@@ -18,6 +19,7 @@ void register_external_asset_manager_types() {
 	ClassDB::register_class<Identifier>();
 	ClassDB::register_class<DynamicAssetIndexer>();
 	ClassDB::register_class<DataCacheManager>();
+	ClassDB::register_class<EntityTemplateManager>();
 	ClassDB::register_class<DynmaicPrefixHandler>(true);
 }
 
@@ -31,6 +33,7 @@ void initialize_external_asset_manager_module(ModuleInitializationLevel p_level)
 		// Register singletons with engine.
 		Engine::get_singleton()->register_singleton("AssetIndexer", DynamicAssetIndexer::get_singleton().ptr());
 		Engine::get_singleton()->register_singleton("DataCache", DataCacheManager::get_singleton().ptr());
+		Engine::get_singleton()->register_singleton("EntityTemplates", EntityTemplateManager::get_singleton().ptr());
 
 		// Index assets at startup.
 		DynamicAssetIndexer::get_singleton()->index_files();
@@ -54,6 +57,9 @@ void uninitialize_external_asset_manager_module(ModuleInitializationLevel p_leve
 
 	Engine::get_singleton()->unregister_singleton("DataCache");
 	DataCacheManager::destory_singleton();
+
+	Engine::get_singleton()->unregister_singleton("EntityTemplates");
+	EntityTemplateManager::destory_singleton();
 
 	ResourceLoader::get_singleton()->remove_resource_format_loader(DynmaicPrefixHandler::get_singleton());
 	DynmaicPrefixHandler::destory_singleton();

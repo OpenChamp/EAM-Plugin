@@ -30,13 +30,16 @@ set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 
 set(SOURCES
-	extensions/src/register_types.cpp
-	extensions/src/identifier.cpp
-	extensions/src/dynamic_asset_indexer.cpp
-	extensions/src/dynmaic_prefix_handler.cpp
-	extensions/src/data_cache_manager.cpp
+	extension/include/pugixml.cpp
+	extension/src/register_types.cpp
+	extension/src/identifier.cpp
+	extension/src/dynamic_asset_indexer.cpp
+	extension/src/dynmaic_prefix_handler.cpp
+	extension/src/data_cache_manager.cpp
+	extension/src/entity_template_manager.cpp
+	extension/src/xml_loader.cpp
 )
-include_directories(extensions/include)
+include_directories(extension/include)
 
 add_library(external_asset_manager SHARED ${SOURCES})
 
@@ -69,21 +72,11 @@ add_custom_command(TARGET external_asset_manager POST_BUILD
 )
 
 # Add the godot-cpp library
-set(GODOT_CPP_BUILD_LIBRARY OFF)
-# Determine which godot-cpp build to use based on configuration
-if(MSVC)
-	if(CMAKE_CONFIGURATION_TYPES)
-		# Multi-config generator, use generator expression
-		string(TOLOWER "$<CONFIG>" CONFIG_LOWER)
-		set(GODOT_CPP_BUILD_DIR "${CMAKE_SOURCE_DIR}/extensions/godot-cpp/build_$<CONFIG>")
-	else()
-		# Single-config generator
-		string(TOLOWER "${CMAKE_BUILD_TYPE}" CONFIG_LOWER)
-		set(GODOT_CPP_BUILD_DIR "${CMAKE_SOURCE_DIR}/extensions/godot-cpp/build_${CONFIG_LOWER}")
-	endif()
-	link_directories(${GODOT_CPP_BUILD_DIR}/lib)
-endif()
-add_subdirectory(extensions/godot-cpp EXCLUDE_FROM_ALL)
+set(GODOT_CPP_BUILD_LIBRARY OFF CACHE BOOL "Build godot-cpp library" FORCE)
+# Prevent godot-cpp from regenerating binding files on every configure
+set(GODOT_CPP_SKIP_BINDING_GENERATION OFF CACHE BOOL "Skip godot-cpp binding generation" FORCE)
+
+add_subdirectory(extension/godot-cpp EXCLUDE_FROM_ALL)
 target_link_libraries(external_asset_manager godot-cpp)
 
 # Use the godot-cpp compile arguments for this as well

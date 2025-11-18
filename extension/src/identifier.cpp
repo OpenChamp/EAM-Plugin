@@ -25,6 +25,23 @@ void Identifier::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("is_texture"), &Identifier::is_texture);
 }
 
+static inline HashMap<String, String> get_content_type_map() {
+	HashMap<String, String> map;
+
+	map["dyn"] = "dynamic";
+	map["texture"] = "textures";
+	map["font"] = "fonts";
+	map["material"] = "materials";
+	map["model"] = "models";
+	map["gamemode"] = "patchdata";
+	map["map"] = "maps";
+	map["unit"] = "units";
+	map["shader"] = "shaders";
+	map["style"] = "styles";
+	map["audio"] = "audio";
+	return map;
+}
+
 Identifier::Identifier() {}
 
 Identifier::~Identifier() {}
@@ -38,6 +55,12 @@ String Identifier::get_name() const {
 }
 
 String Identifier::get_resource_id() const {
+	String prefix = get_content_prefix();
+	if (prefix != "dyn://") {
+		// Use type-specific prefix for non-generic assets
+		return prefix + get_name();
+	}
+	UtilityFunctions::push_warning("Using generic prefix for resource id.");
 	return "dyn://" + to_string();
 }
 
@@ -46,8 +69,7 @@ bool Identifier::is_valid() const {
 }
 
 String Identifier::get_content_type() const {
-	String content_type = get_name().split("/")[0];
-	return content_type;
+	return get_name().get_slice("/", 0);
 }
 
 String Identifier::get_content_prefix() const {
@@ -67,24 +89,6 @@ bool Identifier::is_texture() const {
 
 String Identifier::to_string() const {
 	return String{ group } + ":" + name;
-}
-
-static inline HashMap<String, String> get_content_type_map() {
-	HashMap<String, String> map;
-
-	map["dyn"] = "dynamic";
-	map["texture"] = "textures";
-	map["font"] = "fonts";
-	map["material"] = "materials";
-	map["model"] = "models";
-	map["gamemode"] = "patchdata";
-	map["map"] = "maps";
-	map["unit"] = "units";
-	map["shader"] = "shaders";
-	map["style"] = "styles";
-	map["audio"] = "audio";
-
-	return map;
 }
 
 String Identifier::get_content_type_from_resouce(String _name) {
