@@ -1,0 +1,6 @@
+.godot/
+.vsconfig/
+/android/
+CMakeFiles/
+build/
+*.tmp
