@@ -90,8 +90,8 @@ Dictionary EntityTemplateManager::get_entity_template(String entity_name) {
 		return template_cache[entity_name];
 	}
 
-	// Try to load from patchdata/default/entities/
-	String entity_path = "res://patchdata/default/entities/" + entity_name + ".xml";
+	// Try to load from default_assets/entities/
+	String entity_path = "res://default_assets/entities/" + entity_name + ".xml";
 	
 	if (!FileAccess::file_exists(entity_path)) {
 		UtilityFunctions::push_error("Entity file not found: ", entity_path);
@@ -120,8 +120,8 @@ Dictionary EntityTemplateManager::get_entity_template(String entity_name) {
 TypedArray<String> EntityTemplateManager::get_available_entities() {
 	TypedArray<String> entities;
 	
-	// List all XML files in patchdata/default/entities/
-	String entities_path = "res://patchdata/default/entities/";
+	// List all XML files in default_assets/entities/
+	String entities_path = "res://default_assets/entities/";
 	
 	auto entities_dir = DirAccess::open(entities_path);
 	if (entities_dir == nullptr) {
