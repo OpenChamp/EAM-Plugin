@@ -90,12 +90,38 @@ Dictionary EntityTemplateManager::get_entity_template(String entity_name) {
 		return template_cache[entity_name];
 	}
 
-	// Try to load from default_assets/entities/
-	String entity_path = "res://default_assets/entities/" + entity_name + ".xml";
+	// Try to load from default_assets/entities/ (search in subdirectories)
+	String base_path = "res://default_assets/entities/";
+	String entity_path = base_path + entity_name + ".xml";
 	
+	// First try direct path
 	if (!FileAccess::file_exists(entity_path)) {
-		UtilityFunctions::push_error("Entity file not found: ", entity_path);
-		return empty_dict;
+		// Try searching in subdirectories
+		auto entities_dir = DirAccess::open(base_path);
+		if (entities_dir != nullptr) {
+			entities_dir->list_dir_begin();
+			String dir = "";
+			bool found = false;
+			
+			while ((dir = entities_dir->get_next()) != "") {
+				if (entities_dir->current_is_dir() && !dir.begins_with(".")) {
+					String subdir_path = base_path + dir + "/" + entity_name + ".xml";
+					if (FileAccess::file_exists(subdir_path)) {
+						entity_path = subdir_path;
+						found = true;
+						break;
+					}
+				}
+			}
+			
+			if (!found) {
+				UtilityFunctions::push_error("Entity file not found: ", entity_name, " (searched in ", base_path, ")");
+				return empty_dict;
+			}
+		} else {
+			UtilityFunctions::push_error("Failed to open entities directory: ", base_path);
+			return empty_dict;
+		}
 	}
 
 	// Load and parse the XML
@@ -120,7 +146,7 @@ Dictionary EntityTemplateManager::get_entity_template(String entity_name) {
 TypedArray<String> EntityTemplateManager::get_available_entities() {
 	TypedArray<String> entities;
 	
-	// List all XML files in default_assets/entities/
+	// List all XML files in default_assets/entities/ and subdirectories
 	String entities_path = "res://default_assets/entities/";
 	
 	auto entities_dir = DirAccess::open(entities_path);
@@ -129,16 +155,29 @@ TypedArray<String> EntityTemplateManager::get_available_entities() {
 		return entities;
 	}
 
+	// First level - check subdirectories
 	entities_dir->list_dir_begin();
-	String file = "";
+	String entry = "";
 
-	while ((file = entities_dir->get_next()) != "") {
-		if (!entities_dir->current_is_dir() && file.ends_with(".xml")) {
-			String entity_name = file.substr(0, file.length() - 4); // Remove .xml
-			entities.append(entity_name);
+	while ((entry = entities_dir->get_next()) != "") {
+		if (entities_dir->current_is_dir() && !entry.begins_with(".")) {
+			// Open subdirectory and list XML files
+			auto subdir = DirAccess::open(entities_path + entry);
+			if (subdir != nullptr) {
+				subdir->list_dir_begin();
+				String file = "";
+				
+				while ((file = subdir->get_next()) != "") {
+					if (!subdir->current_is_dir() && file.ends_with(".xml")) {
+						String entity_name = file.substr(0, file.length() - 4); // Remove .xml
+						entities.append(entity_name);
+					}
+				}
+			}
 		}
 	}
 
+	UtilityFunctions::print("Found ", entities.size(), " entity templates");
 	return entities;
 }
 
