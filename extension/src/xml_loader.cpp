@@ -51,28 +51,42 @@ std::shared_ptr<XmlNode> XmlLoader::convert_pugi_node(const pugi::xml_node& pugi
         // Try to parse as other types
         std::string value_str = attr.as_string();
         if (!value_str.empty()) {
-            // Try float
-            try {
-                xml_attr.float_value = std::stof(value_str);
-                xml_attr.type = XmlAttribute::FLOAT;
-                
-                // Try int (if it's a whole number)
-                if (value_str.find('.') == std::string::npos) {
-                    xml_attr.int_value = std::stoi(value_str);
-                    xml_attr.type = XmlAttribute::INT;
-                }
-            } catch (...) {
-                // Keep as string
-                xml_attr.type = XmlAttribute::STRING;
-            }
-            
-            // Try bool
+            // Try bool first
             if (value_str == "true" || value_str == "1") {
                 xml_attr.bool_value = true;
                 xml_attr.type = XmlAttribute::BOOL;
             } else if (value_str == "false" || value_str == "0") {
                 xml_attr.bool_value = false;
                 xml_attr.type = XmlAttribute::BOOL;
+            } else {
+                // Try to parse as number (int or float)
+                bool is_number = true;
+                bool has_dot = false;
+                size_t start = (value_str[0] == '-' || value_str[0] == '+') ? 1 : 0;
+                
+                for (size_t i = start; i < value_str.length(); ++i) {
+                    if (value_str[i] == '.') {
+                        if (has_dot) {
+                            is_number = false;
+                            break;
+                        }
+                        has_dot = true;
+                    } else if (!std::isdigit(value_str[i])) {
+                        is_number = false;
+                        break;
+                    }
+                }
+                
+                if (is_number && start < value_str.length()) {
+                    if (has_dot) {
+                        xml_attr.float_value = std::stof(value_str);
+                        xml_attr.type = XmlAttribute::FLOAT;
+                    } else {
+                        xml_attr.int_value = std::stoi(value_str);
+                        xml_attr.type = XmlAttribute::INT;
+                    }
+                }
+                // else: keep as string (default type)
             }
         }
         

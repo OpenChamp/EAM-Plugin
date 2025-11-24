@@ -3,7 +3,7 @@ project(external_asset_manager LANGUAGES CXX)
 
 set(GODOT_GDEXTENSION_DIR "${CMAKE_SOURCE_DIR}")
 
-# if we are building on linux or mac use the compiler_launcher.sh script
+# Configure platform-specific settings
 if (UNIX)
 	set(CMAKE_C_COMPILER_LAUNCHER "${CMAKE_SOURCE_DIR}/compiler_launcher.sh")
 	set(CMAKE_CXX_COMPILER_LAUNCHER "${CMAKE_SOURCE_DIR}/compiler_launcher.sh")
@@ -11,6 +11,23 @@ else ()
 	set(CMAKE_C_COMPILER_LAUNCHER "${CMAKE_SOURCE_DIR}/compiler_launcher.bat")
 	set(CMAKE_CXX_COMPILER_LAUNCHER "${CMAKE_SOURCE_DIR}/compiler_launcher.bat")
 endif ()
+
+# Normalize line endings for pugixml to match current platform
+if (UNIX)
+	execute_process(
+		COMMAND dos2unix -q -V "${CMAKE_SOURCE_DIR}/extension/include/pugixml.cpp" 2>/dev/null
+		RESULT_VARIABLE DOS2UNIX_RESULT
+		ERROR_QUIET
+	)
+	if (NOT DOS2UNIX_RESULT EQUAL 0)
+		# dos2unix not available, use sed instead
+		execute_process(
+			COMMAND sed -i 's/\r$//' "${CMAKE_SOURCE_DIR}/extension/include/pugixml.cpp"
+			RESULT_VARIABLE SED_RESULT
+			ERROR_QUIET
+		)
+	endif()
+endif()
 
 
 if (GODOT_DISABLE_EXCEPTIONS)
@@ -30,7 +47,6 @@ set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 
 set(SOURCES
-	extension/include/pugixml.cpp
 	extension/src/register_types.cpp
 	extension/src/identifier.cpp
 	extension/src/dynamic_asset_indexer.cpp
