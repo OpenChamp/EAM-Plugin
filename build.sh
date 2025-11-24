@@ -54,6 +54,9 @@ fi
 
 cd "$BUILD_DIR"
 
+# Create .gdignore file to exclude from Godot
+echo "" > .gdignore
+
 echo "Configuring with CMake..."
 cmake .. -DCMAKE_BUILD_TYPE=$BUILD_TYPE
 

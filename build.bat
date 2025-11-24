@@ -29,6 +29,9 @@ if not exist %BUILD_DIR% (
 
 cd %BUILD_DIR%
 
+rem Create .gdignore file to exclude from Godot
+echo "" > .gdignore
+
 echo Configuring with CMake...
 cmake .. -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=%BUILD_TYPE%
 

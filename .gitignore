@@ -1,12 +1,11 @@
 .godot/
 .vsconfig/
-/android/
-CMakeFiles/
-build/
 build_windows/
 build_linux/
 build_mac/
 *.tmp
 *.dll
 *.pdb
+*.so
 default_assets
+addons/asset_placer/
